@@ -1,0 +1,113 @@
+"""RAG (Retrieval-Augmented Generation) service."""
+from typing import List, Dict
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.documents import Document
+
+from ..core.llm import LLMClient
+from ..core.vectorstore import VectorStoreManager
+from ..core.memory import MemoryManager
+from ..config import Settings
+from ..utils.logger import get_logger
+
+logger = get_logger()
+
+
+class RAGService:
+    """Service for RAG-based question answering."""
+
+    def __init__(
+        self,
+        settings: Settings,
+        llm_client: LLMClient,
+        vectorstore: VectorStoreManager,
+        memory: MemoryManager,
+    ):
+        """
+        Initialize RAG service.
+
+        Args:
+            settings: Application settings
+            llm_client: LLM client instance
+            vectorstore: Vector store manager
+            memory: Memory manager
+        """
+        self.settings = settings
+        self.llm_client = llm_client
+        self.vectorstore = vectorstore
+        self.memory = memory
+
+        # RAG prompt template
+        self.prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are a helpful AI assistant. Use the following context to answer the user's question. "
+                      "If you cannot answer based on the context, say so.\n\nContext: {context}"),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("human", "{question}")
+        ])
+
+    def _format_docs(self, docs: List[Document]) -> str:
+        """Format documents into a context string."""
+        return "\n\n".join([doc.page_content for doc in docs])
+
+    def query(
+        self,
+        question: str,
+        session_id: str = "default",
+        k: int = None,
+    ) -> Dict[str, any]:
+        """
+        Query the RAG system.
+
+        Args:
+            question: User question
+            session_id: Session identifier
+            k: Number of documents to retrieve
+
+        Returns:
+            Dictionary with answer and sources
+        """
+        logger.info(f"💬 RAG Query | Session: {session_id} | Q: {question[:50]}...")
+
+        try:
+            # Retrieve relevant documents
+            k = k or self.settings.retrieval_top_k
+            docs = self.vectorstore.similarity_search(question, k=k)
+            logger.info(f"📚 Retrieved {len(docs)} documents")
+
+            context = self._format_docs(docs)
+
+            # Get chat history
+            history = self.memory.get_history(session_id)
+
+            # Format prompt
+            messages = self.prompt.format_messages(
+                context=context,
+                chat_history=history.messages,
+                question=question
+            )
+
+            # Generate response
+            logger.info("🤖 Generating response...")
+            llm = self.llm_client.get_client()
+            answer = llm.invoke(messages)
+
+            # Update memory
+            self.memory.add_user_message(session_id, question)
+            self.memory.add_ai_message(session_id, answer)
+
+            logger.success(f"✅ Response generated ({len(answer)} chars)")
+
+            return {
+                "answer": answer,
+                "sources": [
+                    {
+                        "content": doc.page_content,
+                        "metadata": doc.metadata,
+                    }
+                    for doc in docs
+                ],
+                "session_id": session_id,
+            }
+
+        except Exception as e:
+            logger.error(f"❌ RAG query failed: {str(e)}")
+            raise

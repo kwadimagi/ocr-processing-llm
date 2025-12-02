@@ -1,0 +1,61 @@
+"""Application configuration and settings."""
+import os
+from functools import lru_cache
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    """Application settings loaded from environment variables."""
+
+    # Application
+    app_name: str = "Adamani AI RAG"
+    app_version: str = "1.0.0"
+    debug: bool = False
+    log_level: str = "INFO"
+
+    # LLM Configuration
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3"
+    llm_temperature: float = 0.1
+    llm_timeout: int = 120
+
+    # Embedding Configuration
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_device: str = "cpu"
+
+    # Vector Store Configuration
+    vector_store_type: str = "chroma"  # chroma, faiss
+    vectordb_path: str = "./data/vectorstore"
+
+    # RAG Configuration
+    retrieval_top_k: int = 3
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+
+    # Memory Configuration
+    memory_type: str = "buffer"  # buffer, summary, etc.
+    max_memory_tokens: int = 2000
+
+    # OCR Configuration
+    ocr_engine: str = "tesseract"  # tesseract, easyocr, paddleocr
+    ocr_languages: str = "eng"
+    supported_doc_formats: list = [".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".bmp"]
+
+    # API Configuration
+    api_host: str = "0.0.0.0"
+    api_port: int = 8000
+    cors_origins: list = ["*"]
+
+    # Storage
+    upload_dir: str = "./data/uploads"
+    processed_dir: str = "./data/processed"
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    """Get cached settings instance."""
+    return Settings()
