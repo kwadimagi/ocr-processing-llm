@@ -74,6 +74,20 @@ services:
       - key: PROCESSED_DIR
         value: /opt/render/project/data/processed
 
+      # Database Configuration
+      - key: DATABASE_URL
+        fromDatabase:
+          name: adamani-postgres
+          property: connectionString
+
+      # JWT/Auth Configuration
+      - key: JWT_SECRET_KEY
+        generateValue: true  # Auto-generate secure secret
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRATION_SECONDS
+        value: 604800  # 7 days
+
     disk:
       name: adamani-data
       mountPath: /opt/render/project/data
@@ -93,3 +107,11 @@ services:
         value: production
       - key: NEXT_TELEMETRY_DISABLED
         value: 1
+
+# PostgreSQL Database
+databases:
+  - name: adamani-postgres
+    databaseName: adamani_rag
+    user: adamani_user
+    plan: starter  # $7/month - upgrade to standard ($50/month) for production
+    ipAllowList: []  # Allow all IPs (Render services can connect)

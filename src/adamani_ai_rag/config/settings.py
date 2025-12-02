@@ -63,6 +63,14 @@ class Settings(BaseSettings):
     upload_dir: str = "./data/uploads"
     processed_dir: str = "./data/processed"
 
+    # Database
+    database_url: str = "postgresql+asyncpg://user:password@localhost:5432/adamani_rag"
+
+    # JWT/Auth
+    jwt_secret_key: str = "change-this-to-a-random-secret-key-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expiration_seconds: int = 604800  # 7 days
+
     class Config:
         env_file = ".env"
         case_sensitive = False

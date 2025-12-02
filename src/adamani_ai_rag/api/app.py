@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from ..config import get_settings
 from ..utils.logger import setup_logger, get_logger
-from .routes import health, chat, documents
+from .routes import health, chat, documents, auth
 
 # Setup logging
 settings = get_settings()
@@ -36,6 +36,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router)
+app.include_router(auth.router)  # Authentication routes
 app.include_router(chat.router)
 app.include_router(documents.router)
 
