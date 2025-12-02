@@ -1,6 +1,6 @@
 """LLM client management."""
-from typing import Optional
-from langchain_ollama import OllamaLLM
+from typing import Optional, Union
+from langchain_core.language_models.base import BaseLanguageModel
 from ..config import Settings
 from ..utils.logger import get_logger
 
@@ -18,24 +18,55 @@ class LLMClient:
             settings: Application settings
         """
         self.settings = settings
-        self._client: Optional[OllamaLLM] = None
+        self._client: Optional[BaseLanguageModel] = None
 
-    def get_client(self) -> OllamaLLM:
+    def get_client(self) -> BaseLanguageModel:
         """
-        Get or create LLM client instance.
+        Get or create LLM client instance based on configured provider.
 
         Returns:
-            Initialized OllamaLLM client
+            Initialized LLM client (Ollama, OpenAI, or Anthropic)
         """
         if self._client is None:
-            logger.info(f"🤖 Initializing LLM client: {self.settings.ollama_model}")
-            self._client = OllamaLLM(
-                base_url=self.settings.ollama_base_url,
-                model=self.settings.ollama_model,
-                temperature=self.settings.llm_temperature,
-                timeout=self.settings.llm_timeout,
-            )
-            logger.success("✅ LLM client initialized")
+            provider = self.settings.llm_provider.lower()
+            logger.info(f"🤖 Initializing LLM client with provider: {provider}")
+
+            if provider == "ollama":
+                from langchain_ollama import OllamaLLM
+                self._client = OllamaLLM(
+                    base_url=self.settings.ollama_base_url,
+                    model=self.settings.ollama_model,
+                    temperature=self.settings.llm_temperature,
+                    timeout=self.settings.llm_timeout,
+                )
+                logger.success(f"✅ Ollama client initialized: {self.settings.ollama_model}")
+
+            elif provider == "openai":
+                from langchain_openai import ChatOpenAI
+                if not self.settings.openai_api_key:
+                    raise ValueError("OPENAI_API_KEY is required when using OpenAI provider")
+                self._client = ChatOpenAI(
+                    api_key=self.settings.openai_api_key,
+                    model=self.settings.openai_model,
+                    temperature=self.settings.llm_temperature,
+                    timeout=self.settings.llm_timeout,
+                )
+                logger.success(f"✅ OpenAI client initialized: {self.settings.openai_model}")
+
+            elif provider == "anthropic":
+                from langchain_anthropic import ChatAnthropic
+                if not self.settings.anthropic_api_key:
+                    raise ValueError("ANTHROPIC_API_KEY is required when using Anthropic provider")
+                self._client = ChatAnthropic(
+                    api_key=self.settings.anthropic_api_key,
+                    model=self.settings.anthropic_model,
+                    temperature=self.settings.llm_temperature,
+                    timeout=self.settings.llm_timeout,
+                )
+                logger.success(f"✅ Anthropic client initialized: {self.settings.anthropic_model}")
+
+            else:
+                raise ValueError(f"Unsupported LLM provider: {provider}. Choose from: ollama, openai, anthropic")
 
         return self._client
 

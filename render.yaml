@@ -1,0 +1,95 @@
+services:
+  # Backend API Service
+  - type: web
+    name: adamani-ai-rag-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: APP_NAME
+        value: Adamani AI RAG
+      - key: APP_VERSION
+        value: 1.0.0
+      - key: LOG_LEVEL
+        value: INFO
+      - key: DEBUG
+        value: false
+
+      # LLM Configuration (OpenAI or Anthropic)
+      - key: LLM_PROVIDER
+        value: openai  # or 'anthropic'
+      - key: OPENAI_API_KEY
+        sync: false  # Set this in Render dashboard as secret
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini  # or gpt-4o, gpt-4-turbo
+      - key: ANTHROPIC_API_KEY
+        sync: false  # Set this in Render dashboard as secret (if using Anthropic)
+      - key: ANTHROPIC_MODEL
+        value: claude-3-5-sonnet-20241022  # or other Claude models
+      - key: LLM_TEMPERATURE
+        value: 0.1
+      - key: LLM_TIMEOUT
+        value: 120
+
+      # Embedding Configuration
+      - key: EMBEDDING_MODEL
+        value: sentence-transformers/all-MiniLM-L6-v2
+      - key: EMBEDDING_DEVICE
+        value: cpu
+
+      # Vector Store Configuration
+      - key: VECTOR_STORE_TYPE
+        value: chroma
+      - key: VECTORDB_PATH
+        value: /opt/render/project/data/vectorstore
+
+      # RAG Configuration
+      - key: RETRIEVAL_TOP_K
+        value: 3
+      - key: CHUNK_SIZE
+        value: 1000
+      - key: CHUNK_OVERLAP
+        value: 200
+
+      # Memory Configuration
+      - key: MEMORY_TYPE
+        value: buffer
+      - key: MAX_MEMORY_TOKENS
+        value: 2000
+
+      # OCR Configuration
+      - key: OCR_ENGINE
+        value: tesseract
+      - key: OCR_LANGUAGES
+        value: eng
+
+      # API Configuration
+      - key: API_HOST
+        value: 0.0.0.0
+      - key: API_PORT
+        value: 8000
+
+      # Storage Paths
+      - key: UPLOAD_DIR
+        value: /opt/render/project/data/uploads
+      - key: PROCESSED_DIR
+        value: /opt/render/project/data/processed
+
+    disk:
+      name: adamani-data
+      mountPath: /opt/render/project/data
+      sizeGB: 10
+
+    healthCheckPath: /health
+
+  # Frontend Service
+  - type: web
+    name: adamani-ai-rag-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://adamani-ai-rag-backend.onrender.com
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_TELEMETRY_DISABLED
+        value: 1

@@ -14,8 +14,21 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # LLM Configuration
+    llm_provider: str = "ollama"  # ollama, openai, anthropic
+
+    # Ollama settings
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"
+
+    # OpenAI settings
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+
+    # Anthropic settings
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-3-5-sonnet-20241022"
+
+    # General LLM settings
     llm_temperature: float = 0.1
     llm_timeout: int = 120
 
