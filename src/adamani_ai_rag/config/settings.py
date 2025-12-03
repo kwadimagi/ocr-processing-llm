@@ -79,6 +79,14 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = False
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Convert postgres:// to postgresql+asyncpg:// for Render compatibility
+        if self.database_url.startswith("postgres://"):
+            self.database_url = self.database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif self.database_url.startswith("postgresql://") and "asyncpg" not in self.database_url:
+            self.database_url = self.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
 
 @lru_cache()
 def get_settings() -> Settings:
