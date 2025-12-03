@@ -57,7 +57,11 @@ class Settings(BaseSettings):
     # API Configuration
     api_host: str = "0.0.0.0"
     api_port: int = int(os.getenv("PORT", "8000"))  # Use PORT from Render or default to 8000
-    cors_origins: list = ["*"]
+    cors_origins: list = [
+        "http://localhost:3000",  # Local development
+        "http://localhost:8080",  # Local development (alt port)
+        "https://adamani-ai-rag-frontend.onrender.com",  # Production frontend
+    ]
 
     # Storage
     upload_dir: str = "./data/uploads"
