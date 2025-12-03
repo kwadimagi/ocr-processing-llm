@@ -6,7 +6,7 @@ import type {
 } from '@/types';
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  process.env.NEXT_PUBLIC_API_URL || 'https://adamani-ai-rag-backend.onrender.com';
 
 class APIError extends Error {
   constructor(
