@@ -20,11 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Poetry
 RUN pip install --no-cache-dir "poetry>=1.7.0"
 
-# Install PyTorch CPU-only version first (before poetry install)
-# This prevents poetry from installing CUDA/GPU versions which fail on Render
-RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-
 # Install Python dependencies (skip installing the project itself)
+# Poetry will handle PyTorch installation with correct CPU version
 RUN poetry config virtualenvs.create false \
     && poetry install --no-root --no-interaction --no-ansi
 
