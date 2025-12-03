@@ -1,9 +1,12 @@
 """Main FastAPI application."""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from ..config import get_settings
 from ..utils.logger import setup_logger, get_logger
+from ..database.base import Base
+from ..database.models import User, Organization, OrganizationMember, Document
 from .routes import health, chat, documents, auth
 
 # Setup logging
@@ -47,6 +50,29 @@ app.include_router(documents.router)
 @app.on_event("startup")
 async def startup_event():
     """Application startup event."""
+    # Create database tables if they don't exist
+    try:
+        logger.info("🗄️  Initializing database tables...")
+        engine = create_async_engine(settings.database_url)
+
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        logger.success("✅ Database tables initialized!")
+
+        # Log existing tables for verification
+        async with engine.connect() as conn:
+            from sqlalchemy import text
+            result = await conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public'"))
+            tables = [row[0] for row in result]
+            logger.info(f"📊 Database tables: {', '.join(tables)}")
+
+        await engine.dispose()
+    except Exception as e:
+        logger.error(f"❌ Error initializing database: {e}")
+        # Don't fail startup if tables already exist or minor issues
+        logger.warning("⚠️  Continuing startup despite database initialization error")
+
     logger.success("✅ Application startup complete!")
     logger.info(f"📚 API Documentation: http://{settings.api_host}:{settings.api_port}/docs")
 
