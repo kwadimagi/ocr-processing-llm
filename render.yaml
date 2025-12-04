@@ -86,6 +86,10 @@ services:
         value: HS256
       - key: JWT_EXPIRATION_SECONDS
         value: 604800  # 7 days
+    
+      # CORS Configuration
+      - key: CORS_ORIGINS
+        value: https://adamani-ai-rag-frontend.onrender.com
 
     disk:
       name: adamani-data
