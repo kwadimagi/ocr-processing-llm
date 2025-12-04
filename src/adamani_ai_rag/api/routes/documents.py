@@ -3,7 +3,8 @@ import os
 import shutil
 from typing import List
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, BackgroundTasks
+from fastapi.responses import JSONResponse
 
 from ...services.document_service import DocumentService
 from ..models import AddTextsRequest, DocumentResponse
@@ -40,8 +41,18 @@ async def add_texts(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/upload", response_model=DocumentResponse)
+def process_file_background(file_path: str, use_ocr: bool, doc_service: DocumentService):
+    """Background task to process file."""
+    try:
+        chunks = doc_service.process_file(file_path, use_ocr=use_ocr)
+        logger.success(f"✅ Background processing complete: {chunks} chunks created")
+    except Exception as e:
+        logger.error(f"❌ Background processing error: {str(e)}")
+
+
+@router.post("/upload")
 async def upload_file(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     use_ocr: bool = False,
     doc_service: DocumentService = Depends(get_document_service),
@@ -58,9 +69,12 @@ async def upload_file(
         # Validate file extension
         file_ext = Path(file.filename).suffix.lower()
         if file_ext not in settings.supported_doc_formats:
-            raise HTTPException(
+            return JSONResponse(
                 status_code=400,
-                detail=f"Unsupported file format. Supported: {settings.supported_doc_formats}",
+                content={
+                    "status": "error",
+                    "message": f"Unsupported file format. Supported: {settings.supported_doc_formats}"
+                }
             )
 
         # Save uploaded file
@@ -72,21 +86,27 @@ async def upload_file(
 
         logger.info(f"📥 Uploaded file: {file.filename} ({file_ext})")
 
-        # Process file (PDF or image)
-        chunks = doc_service.process_file(file_path, use_ocr=use_ocr)
-
-        return DocumentResponse(
-            status="success",
-            documents_added=1,
-            chunks_created=chunks,
-            message=f"Successfully processed {file.filename}",
+        # Process file in background
+        background_tasks.add_task(process_file_background, file_path, use_ocr, doc_service)
+        
+        # Return immediately
+        return JSONResponse(
+            status_code=202,  # 202 Accepted
+            content={
+                "status": "processing",
+                "message": f"File {file.filename} uploaded and queued for processing"
+            }
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Upload file error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": "Upload failed"
+            }
+        )
 
 
 @router.post("/process-directory", response_model=DocumentResponse)
@@ -107,7 +127,7 @@ async def process_directory(
 
         return DocumentResponse(
             status="success",
-            documents_added=0,  # Updated in service
+            documents_added=0,
             chunks_created=chunks,
             message=f"Successfully processed directory: {directory_path}",
         )
