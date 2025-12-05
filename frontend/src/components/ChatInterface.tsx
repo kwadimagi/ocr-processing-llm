@@ -2,13 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, FileText, Trash2 } from 'lucide-react';
-import { sendChatMessage, clearMemory } from '@/lib/api';
+import { sendChatMessageStream, clearMemory } from '@/lib/api';
 import type { ChatMessage, SourceDocument } from '@/types';
 
 export function ChatInterface({ sessionId }: { sessionId: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
   const [sources, setSources] = useState<SourceDocument[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -18,7 +19,7 @@ export function ChatInterface({ sessionId }: { sessionId: string }) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, streamingContent]);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -32,22 +33,52 @@ export function ChatInterface({ sessionId }: { sessionId: string }) {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setLoading(true);
+    setStreamingContent('');
+
+    // Use a ref to track the accumulated content
+    let accumulatedContent = '';
 
     try {
-      const response = await sendChatMessage({
-        question: input,
-        session_id: sessionId,
-        k: 5,
-      });
-
-      const assistantMessage: ChatMessage = {
-        role: 'assistant',
-        content: response.answer,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-      setSources(response.sources);
+      await sendChatMessageStream(
+        {
+          question: input,
+          session_id: sessionId,
+          k: 5,
+        },
+        // onToken: Accumulate tokens as they arrive
+        (token: string) => {
+          accumulatedContent += token;
+          setStreamingContent(accumulatedContent);
+        },
+        // onSources: Set sources when received
+        (sources: SourceDocument[]) => {
+          setSources(sources);
+        },
+        // onComplete: Finalize the message
+        () => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: 'assistant',
+              content: accumulatedContent,
+              timestamp: new Date(),
+            },
+          ]);
+          setStreamingContent('');
+          setLoading(false);
+        },
+        // onError: Handle errors
+        (error: string) => {
+          const errorMessage: ChatMessage = {
+            role: 'assistant',
+            content: `Error: ${error}`,
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, errorMessage]);
+          setStreamingContent('');
+          setLoading(false);
+        }
+      );
     } catch (error: any) {
       const errorMessage: ChatMessage = {
         role: 'assistant',
@@ -55,8 +86,8 @@ export function ChatInterface({ sessionId }: { sessionId: string }) {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
-    } finally {
       setLoading(false);
+      setStreamingContent('');
     }
   };
 
@@ -147,18 +178,25 @@ export function ChatInterface({ sessionId }: { sessionId: string }) {
         {loading && (
           <div className="flex items-start space-x-3">
             <Bot className="w-8 h-8 text-blue-600 bg-blue-50 rounded-full p-1.5" />
-            <div className="bg-gray-100 rounded-lg p-4">
-              <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                <div
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                  style={{ animationDelay: '0.2s' }}
-                />
-                <div
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                  style={{ animationDelay: '0.4s' }}
-                />
-              </div>
+            <div className="bg-gray-100 rounded-lg p-4 max-w-[80%]">
+              {streamingContent ? (
+                <>
+                  <p className="whitespace-pre-wrap">{streamingContent}</p>
+                  <div className="inline-block w-2 h-4 bg-blue-600 animate-pulse ml-1" />
+                </>
+              ) : (
+                <div className="flex space-x-2">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                  <div
+                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                    style={{ animationDelay: '0.2s' }}
+                  />
+                  <div
+                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                    style={{ animationDelay: '0.4s' }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}

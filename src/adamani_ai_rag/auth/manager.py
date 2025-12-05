@@ -63,7 +63,7 @@
 #     """Get user manager instance."""
 #     yield UserManager(user_db)
 
-"""User manager for FastAPI-Users."""
+"""User manager for FastAPI-Users."""`
 from typing import Optional
 import uuid
 

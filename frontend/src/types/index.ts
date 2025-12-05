@@ -26,6 +26,20 @@ export interface ChatResponse {
   session_id: string;
 }
 
+export interface AsyncChatInitResponse {
+  status: 'processing';
+  request_id: string;
+  message: string;
+}
+
+export interface ChatStatusResponse {
+  status: 'processing' | 'completed' | 'error';
+  message?: string;
+  answer?: string;
+  sources?: SourceDocument[];
+  session_id?: string;
+}
+
 export interface DocumentResponse {
   status: string;
   documents_added: number;

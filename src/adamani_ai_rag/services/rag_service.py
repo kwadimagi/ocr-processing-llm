@@ -1,5 +1,5 @@
 """RAG (Retrieval-Augmented Generation) service."""
-from typing import List, Dict
+from typing import List, Dict, AsyncGenerator
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.documents import Document
 
@@ -110,4 +110,93 @@ class RAGService:
 
         except Exception as e:
             logger.error(f"❌ RAG query failed: {str(e)}")
+            raise
+
+    async def query_stream(
+        self,
+        question: str,
+        session_id: str = "default",
+        k: int = None,
+    ) -> AsyncGenerator[Dict[str, any], None]:
+        """
+        Query the RAG system with streaming response.
+
+        Args:
+            question: User question
+            session_id: Session identifier
+            k: Number of documents to retrieve
+
+        Yields:
+            Dictionary chunks with token, sources, and metadata
+        """
+        logger.info(f"💬 RAG Stream Query | Session: {session_id} | Q: {question[:50]}...")
+
+        try:
+            # Retrieve relevant documents
+            k = k or self.settings.retrieval_top_k
+            docs = self.vectorstore.similarity_search(question, k=k)
+            logger.info(f"📚 Retrieved {len(docs)} documents")
+
+            # Send sources first
+            sources = [
+                {
+                    "content": doc.page_content,
+                    "metadata": doc.metadata,
+                }
+                for doc in docs
+            ]
+            yield {
+                "type": "sources",
+                "sources": sources,
+                "session_id": session_id,
+            }
+
+            context = self._format_docs(docs)
+
+            # Get chat history
+            history = self.memory.get_history(session_id)
+
+            # Format prompt
+            messages = self.prompt.format_messages(
+                context=context,
+                chat_history=history.messages,
+                question=question
+            )
+
+            # Generate streaming response
+            logger.info("🤖 Generating streaming response...")
+            llm = self.llm_client.get_client()
+
+            full_response = ""
+            async for chunk in llm.astream(messages):
+                # Handle different response formats
+                if hasattr(chunk, 'content'):
+                    token = chunk.content
+                else:
+                    token = str(chunk)
+
+                full_response += token
+                yield {
+                    "type": "token",
+                    "token": token,
+                }
+
+            # Update memory with complete response
+            self.memory.add_user_message(session_id, question)
+            self.memory.add_ai_message(session_id, full_response)
+
+            logger.success(f"✅ Streaming response completed ({len(full_response)} chars)")
+
+            # Send completion signal
+            yield {
+                "type": "done",
+                "session_id": session_id,
+            }
+
+        except Exception as e:
+            logger.error(f"❌ RAG stream query failed: {str(e)}")
+            yield {
+                "type": "error",
+                "error": str(e),
+            }
             raise
