@@ -4,7 +4,7 @@ from typing import Optional
 import uuid
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, BigInteger, Integer
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, BigInteger, Integer, Text, Float
 from sqlalchemy.dialects.postgresql import UUID,JSONB
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
