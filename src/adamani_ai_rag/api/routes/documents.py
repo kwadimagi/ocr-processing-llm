@@ -7,6 +7,8 @@ from typing import List, Dict, Any
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, BackgroundTasks
 from fastapi.responses import JSONResponse
+import asyncio
+from time import time
 
 from ...services.document_service import DocumentService
 from ..models import AddTextsRequest, DocumentResponse
@@ -46,18 +48,50 @@ async def add_texts(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# def process_file_background(file_path: str, filename: str, use_ocr: bool, doc_service: DocumentService, upload_id: str):
+#     """Background task to process file."""
+#     try:
+#         logger.info(f"🔄 Processing {filename} in background...")
+#         chunks = doc_service.process_file(file_path, use_ocr=use_ocr)
+        
+#         # Store result for retrieval
+#         _upload_results[upload_id] = {
+#             "status": "success",
+#             "documents_added": 1,
+#             "chunks_created": chunks,
+#             "message": f"Successfully processed {filename}"
+#         }
+#         logger.success(f"✅ Background processing complete: {chunks} chunks created from {filename}")
+        
+#     except Exception as e:
+#         logger.error(f"❌ Background processing error: {str(e)}")
+#         _upload_results[upload_id] = {
+#             "status": "error",
+#             "message": str(e)[:200]
+#         }
+
+
+
 def process_file_background(file_path: str, filename: str, use_ocr: bool, doc_service: DocumentService, upload_id: str):
     """Background task to process file."""
     try:
         logger.info(f"🔄 Processing {filename} in background...")
-        chunks = doc_service.process_file(file_path, use_ocr=use_ocr)
+        
+        # ✅ RUN THE ASYNC METHOD PROPERLY
+        try:
+            loop = asyncio.get_running_loop()
+            chunks = loop.run_until_complete(doc_service.process_file(file_path, use_ocr=use_ocr))
+        except RuntimeError:
+            # No event loop running → create new one
+            chunks = asyncio.run(doc_service.process_file(file, use_ocr=use_ocr))
         
         # Store result for retrieval
         _upload_results[upload_id] = {
             "status": "success",
             "documents_added": 1,
-            "chunks_created": chunks,
-            "message": f"Successfully processed {filename}"
+            "chunks_created": chunks,  # ✅ Now an INTEGER
+            "message": f"Successfully processed {filename}",
+            "timestamp": time()
         }
         logger.success(f"✅ Background processing complete: {chunks} chunks created from {filename}")
         
@@ -65,9 +99,9 @@ def process_file_background(file_path: str, filename: str, use_ocr: bool, doc_se
         logger.error(f"❌ Background processing error: {str(e)}")
         _upload_results[upload_id] = {
             "status": "error",
-            "message": str(e)[:200]
+            "message": str(e)[:200],
+            "timestamp": time()
         }
-
 
 @router.post("/upload")
 async def upload_file(
