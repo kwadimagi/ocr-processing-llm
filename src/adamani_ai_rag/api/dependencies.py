@@ -1,5 +1,8 @@
 """Dependency injection for FastAPI."""
 from functools import lru_cache
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
 
 from ..config import get_settings, Settings
 from ..core.llm import LLMClient
@@ -10,7 +13,7 @@ from ..core.ocr import OCRProcessor
 from ..core.pdf_processor import PDFProcessor
 from ..services.rag_service import RAGService
 from ..services.document_service import DocumentService
-
+from ..database.session import async_session_maker
 
 # Singleton instances
 _llm_client = None
@@ -90,13 +93,29 @@ def get_rag_service() -> RAGService:
     return _rag_service
 
 
-def get_document_service() -> DocumentService:
-    """Get document service singleton."""
-    global _document_service
-    if _document_service is None:
-        settings = get_settings()
-        vectorstore = get_vectorstore_manager()
-        ocr_processor = get_ocr_processor()
-        pdf_processor = get_pdf_processor()
-        _document_service = DocumentService(settings, vectorstore, ocr_processor, pdf_processor)
-    return _document_service
+async def get_db():
+    async with async_session_maker() as session:
+        yield session
+
+async def get_document_service(
+    db: AsyncSession = Depends(get_db),
+) -> DocumentService:
+    settings = get_settings()
+    return DocumentService(
+        settings=settings,
+        vectorstore=get_vectorstore_manager(),
+        ocr_processor=get_ocr_processor(),
+        pdf_processor=get_pdf_processor(),
+        llm_client=get_llm_client(),  # ✅ Added
+        db=db,                        # ✅ Added
+    )
+# def get_document_service() -> DocumentService:
+#     """Get document service singleton."""
+#     global _document_service
+#     if _document_service is None:
+#         settings = get_settings()
+#         vectorstore = get_vectorstore_manager()
+#         ocr_processor = get_ocr_processor()
+#         pdf_processor = get_pdf_processor()
+#         _document_service = DocumentService(settings, vectorstore, ocr_processor, pdf_processor)
+#     return _document_service
