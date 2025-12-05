@@ -5,11 +5,10 @@ import uuid
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, BigInteger, Integer
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID,JSONB
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from .base import Base
-
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
     """User model with FastAPI-Users integration."""
@@ -99,3 +98,24 @@ class Document(Base):
     # Relationships
     organization = relationship("Organization", back_populates="documents")
     user = relationship("User", back_populates="documents")
+
+
+
+class Invoice(Base):
+    __tablename__ = "invoices"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_name = Column(String, nullable=False)
+    vendor_address = Column(Text, nullable=True)
+    invoice_number = Column(String, nullable=False, index=True)
+    invoice_date = Column(DateTime, nullable=False)
+    due_date = Column(DateTime, nullable=True)
+    total_amount = Column(Float, nullable=False)
+    tax_amount = Column(Float, nullable=True)
+    currency = Column(String(3), default="USD", nullable=False)
+    line_items = Column(JSONB, nullable=False, default=list)  # Store as JSON
+    file_path = Column(String, nullable=True)  # Original file path
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Optional: link to user/org
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))

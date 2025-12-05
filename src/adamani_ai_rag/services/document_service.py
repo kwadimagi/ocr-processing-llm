@@ -1,15 +1,18 @@
 """Document processing and ingestion service."""
 import os
-from typing import List
+from typing import List, Optional
 from pathlib import Path
 from langchain_core.documents import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..core.llm import LLMClient
 from ..core.vectorstore import VectorStoreManager
 from ..core.ocr import OCRProcessor
 from ..core.pdf_processor import PDFProcessor
 from ..config import Settings
 from ..utils.logger import get_logger
+from .invoice_extractor import InvoiceExtractor, InvoiceData  # <-- ADD THIS
 
 logger = get_logger()
 
@@ -23,6 +26,9 @@ class DocumentService:
         vectorstore: VectorStoreManager,
         ocr_processor: OCRProcessor,
         pdf_processor: PDFProcessor,
+        llm_client: LLMClient,
+        db: AsyncSession,
+        invoice_extractor: Optional[InvoiceExtractor] = None,
     ):
         """
         Initialize document service.
@@ -37,13 +43,65 @@ class DocumentService:
         self.vectorstore = vectorstore
         self.ocr_processor = ocr_processor
         self.pdf_processor = pdf_processor
-
+        self.llm_client = llm_client
+        self.db = db  # <-- STORE DB SESSION
+        self.invoice_extractor = InvoiceExtractor(llm_client, settings)
         # Text splitter for chunking
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=settings.chunk_size,
             chunk_overlap=settings.chunk_overlap,
             length_function=len,
         )
+    
+    def _is_invoice(self, text: str) -> bool:
+        keywords = ["invoice", "bill", "total", "amount due", "tax", "invoice no", "invoice #"]
+        text_lower = text.lower()
+        return sum(1 for kw in keywords if kw in text_lower) >= 2
+
+    async def process_file(self, file_path: str, use_ocr: bool = False) -> int:
+        """Process file: extract invoice if detected, AND add to vector store."""
+        logger.info(f"📂 Processing file: {file_path} (OCR: {use_ocr})")
+        
+        file_ext = Path(file_path).suffix.lower()
+        documents: List[Document] = []
+
+        try:
+            if file_ext == ".pdf":
+                # ✅ Use PDFProcessor for ALL PDFs (it handles OCR internally)
+                documents = self.pdf_processor.process_pdf_to_documents(
+                    pdf_path=file_path,
+                    use_ocr=use_ocr
+                )
+            elif file_ext in [".png", ".jpg", ".jpeg", ".tiff", ".bmp"]:
+                # ✅ Use OCRProcessor for images
+                doc = self.ocr_processor.process_image_to_document(image_path=file_path)
+                documents = [doc]
+            else:
+                logger.warning(f"Unsupported file type: {file_ext}")
+                return 0
+
+            if not documents:
+                logger.warning("No content extracted from file")
+                return 0
+
+            # Get full text for invoice detection
+            full_text = "\n\n".join([doc.page_content for doc in documents])
+
+            # === INVOICE EXTRACTION ===
+            if self._is_invoice(full_text):
+                try:
+                    invoice_data = self.invoice_extractor.extract(full_text)
+                    await self.invoice_extractor.save_to_db(self.db, invoice_data, file_path)
+                except Exception as e:
+                    logger.warning(f"⚠️ Invoice extraction failed: {e}")
+
+            # === VECTOR STORE INDEXING (RAG) ===
+            chunks_added = self.process_documents(documents)
+            return chunks_added
+
+        except Exception as e:
+            logger.error(f"❌ File processing failed: {str(e)}")
+            raise
 
     def add_texts(self, texts: List[str], metadatas: List[dict] = None) -> int:
         """
@@ -94,43 +152,6 @@ class DocumentService:
             logger.error(f"❌ Failed to process documents: {str(e)}")
             raise
 
-    def process_file(self, file_path: str, use_ocr: bool = False) -> int:
-        """
-        Process a file (PDF or image) intelligently.
-
-        Args:
-            file_path: Path to file
-            use_ocr: Force OCR for scanned PDFs
-
-        Returns:
-            Number of chunks added
-        """
-        file_ext = Path(file_path).suffix.lower()
-        logger.info(f"📄 Processing {file_ext} file: {Path(file_path).name}")
-
-        try:
-            if file_ext == ".pdf":
-                # Process PDF
-                documents = self.pdf_processor.process_pdf_to_documents(
-                    file_path,
-                    use_ocr=use_ocr
-                )
-            elif file_ext in {".png", ".jpg", ".jpeg", ".tiff", ".bmp"}:
-                # Process image with OCR
-                document = self.ocr_processor.process_image_to_document(file_path)
-                documents = [document]
-            else:
-                raise ValueError(f"Unsupported file type: {file_ext}")
-
-            # Process and add to vector store
-            chunks_added = self.process_documents(documents)
-
-            logger.success(f"✅ Processed {Path(file_path).name}: {len(documents)} pages, {chunks_added} chunks")
-            return chunks_added
-
-        except Exception as e:
-            logger.error(f"❌ Failed to process {file_path}: {str(e)}")
-            raise
 
     def process_directory(self, directory_path: str) -> int:
         """

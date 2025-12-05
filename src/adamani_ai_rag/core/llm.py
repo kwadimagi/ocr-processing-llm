@@ -31,16 +31,25 @@ class LLMClient:
             provider = self.settings.llm_provider.lower()
             logger.info(f"🤖 Initializing LLM client with provider: {provider}")
 
+            # if provider == "ollama":
+            #     from langchain_ollama import OllamaLLM
+            #     self._client = OllamaLLM(
+            #         base_url=self.settings.ollama_base_url,
+            #         model=self.settings.ollama_model,
+            #         temperature=self.settings.llm_temperature,
+            #         timeout=self.settings.llm_timeout,
+            #     )
+            #     logger.success(f"✅ Ollama client initialized: {self.settings.ollama_model}")
             if provider == "ollama":
-                from langchain_ollama import OllamaLLM
-                self._client = OllamaLLM(
+                from langchain_ollama import ChatOllama  # ✅ Changed import
+                self._client = ChatOllama(
                     base_url=self.settings.ollama_base_url,
                     model=self.settings.ollama_model,
                     temperature=self.settings.llm_temperature,
                     timeout=self.settings.llm_timeout,
+                    streaming=True,  # ✅ Explicit streaming
                 )
-                logger.success(f"✅ Ollama client initialized: {self.settings.ollama_model}")
-
+                logger.success(f"✅ Ollama Chat client initialized: {self.settings.ollama_model}")
             elif provider == "openai":
                 from langchain_openai import ChatOpenAI
                 if not self.settings.openai_api_key:
