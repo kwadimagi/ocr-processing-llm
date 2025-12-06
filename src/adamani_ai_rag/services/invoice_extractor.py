@@ -2,6 +2,7 @@
 import logging
 from typing import Any
 from pathlib import Path
+import uuid
 
 from pydantic import BaseModel, Field, validator
 from langchain_core.prompts import PromptTemplate
@@ -78,7 +79,7 @@ class InvoiceExtractor:
             logger.error(f"❌ Extraction failed: {str(e)}")
             raise
 
-    async def save_to_db(self, db: AsyncSession, invoice_data: InvoiceData, file_path: str) -> Invoice:
+    async def save_to_db(self, db: AsyncSession, invoice_data: InvoiceData, file_path: str,user_id: Optional[uuid.UUID] = None ) -> Invoice:
         """Save extracted invoice to database."""
         from datetime import datetime
         logger.info(f"💾 Saving invoice {invoice_data.vendor_name} to DB")
@@ -93,7 +94,8 @@ class InvoiceExtractor:
             tax_amount=invoice_data.tax_amount,
             currency=invoice_data.currency,
             line_items=invoice_data.line_items,
-            file_path=file_path
+            file_path=file_path,
+            user_id=user_id or uuid.uuid4()
         )
         db.add(invoice)
         logger.info("🔍 About to commit")

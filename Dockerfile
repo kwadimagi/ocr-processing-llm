@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
     libpoppler-cpp-dev \
     pkg-config \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry

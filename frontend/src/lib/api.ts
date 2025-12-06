@@ -303,3 +303,22 @@ export async function healthCheck(): Promise<HealthResponse> {
   const response = await fetch(`${API_BASE}/health`);
   return handleResponse<HealthResponse>(response);
 }
+
+export interface Invoice {
+  id: string;
+  vendor_name: string;
+  invoice_number: string;
+  total_amount: number;
+  currency: string;
+  invoice_date: string;
+  due_date: string | null;
+  status: 'paid' | 'unpaid';
+}
+
+export async function getUserInvoices(): Promise<Invoice[]> {
+  const res = await fetch('/api/invoices', {
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+  });
+  if (!res.ok) throw new Error('Failed to fetch invoices');
+  return res.json();
+}

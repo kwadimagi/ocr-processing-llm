@@ -58,7 +58,7 @@ class DocumentService:
         text_lower = text.lower()
         return sum(1 for kw in keywords if kw in text_lower) >= 2
 
-    async def process_file(self, file_path: str, use_ocr: bool = False) -> int:
+    async def process_file(self, file_path: str, use_ocr: bool = False,user_id: Optional[uuid.UUID] = None) -> int:
         """Process file: extract invoice if detected, AND add to vector store."""
         logger.info(f"📂 Processing file: {file_path} (OCR: {use_ocr})")
         
@@ -91,7 +91,7 @@ class DocumentService:
             if self._is_invoice(full_text):
                 try:
                     invoice_data = self.invoice_extractor.extract(full_text)
-                    await self.invoice_extractor.save_to_db(self.db, invoice_data, file_path)
+                    await self.invoice_extractor.save_to_db(self.db, invoice_data, file_path,user_id=user_id )
                 except Exception as e:
                     logger.warning(f"⚠️ Invoice extraction failed: {e}")
 

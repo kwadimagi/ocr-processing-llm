@@ -30,7 +30,8 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
         "OrganizationMember", back_populates="user", cascade="all, delete-orphan"
     )
     documents = relationship("Document", back_populates="user")
-
+    
+    invoices = relationship("Invoice", back_populates="user")
 
 class Organization(Base):
     """Organization (workspace/tenant) model."""
@@ -118,4 +119,8 @@ class Invoice(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Optional: link to user/org
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    # 🔑 Add user association
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    
+    # Optional: relationship (for ORM queries)
+    user = relationship("User", back_populates="invoices")

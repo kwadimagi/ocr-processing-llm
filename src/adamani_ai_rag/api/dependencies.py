@@ -4,6 +4,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
 
+from ..auth.config import current_active_user
 from ..config import get_settings, Settings
 from ..core.llm import LLMClient
 from ..core.embeddings import EmbeddingManager
@@ -80,6 +81,9 @@ def get_pdf_processor() -> PDFProcessor:
         _pdf_processor = PDFProcessor(settings)
     return _pdf_processor
 
+def get_current_user():
+    """Get current authenticated user."""
+    return current_active_user
 
 def get_rag_service() -> RAGService:
     """Get RAG service singleton."""

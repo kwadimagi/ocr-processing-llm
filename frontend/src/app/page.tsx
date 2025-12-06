@@ -7,6 +7,7 @@ import { ChatInterface } from '@/components/ChatInterface';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { healthCheck } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { InvoiceDashboard } from '@/components/InvoiceDashboard';
 
 export default function Home() {
   const { user, logout } = useAuth();
@@ -125,11 +126,10 @@ export default function Home() {
 
               <FileUploader
                 onUploadSuccess={() => {
-                  // Automatically switch to chat tab after successful upload
                   setActiveTab('chat');
                 }}
               />
-
+               <InvoiceDashboard />
               <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                 <h3 className="text-sm font-semibold text-blue-900 mb-2">
                   Supported Documents

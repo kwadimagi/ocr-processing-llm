@@ -10,6 +10,9 @@ from fastapi.responses import JSONResponse
 import asyncio
 from time import time
 
+
+from ..dependencies import get_current_user
+from ...database.models import User
 from ...services.document_service import DocumentService
 from ..models import AddTextsRequest, DocumentResponse
 from ..dependencies import get_document_service, get_settings
@@ -47,7 +50,7 @@ async def add_texts(
         logger.error(f"Add texts error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-def process_file_background(file_path: str, filename: str, use_ocr: bool, doc_service: DocumentService, upload_id: str):
+def process_file_background(file_path: str, filename: str, use_ocr: bool, doc_service: DocumentService, upload_id: str, user_id: uuid.UUID):
     """Background task to process file."""
     try:
         logger.info(f"🔄 Processing {filename} in background...")
@@ -55,7 +58,7 @@ def process_file_background(file_path: str, filename: str, use_ocr: bool, doc_se
         # ✅ RUN THE ASYNC METHOD PROPERLY
         try:
             loop = asyncio.get_running_loop()
-            chunks = loop.run_until_complete(doc_service.process_file(file_path, use_ocr=use_ocr))
+            chunks = loop.run_until_complete(doc_service.process_file(file_path, use_ocr=use_ocr,user_id=user_id))
         except RuntimeError:
             # No event loop running → create new one
             chunks = asyncio.run(doc_service.process_file(file_path, use_ocr=use_ocr))
@@ -83,6 +86,7 @@ async def upload_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     use_ocr: bool = False,
+    user = Depends(get_current_user),
     doc_service: DocumentService = Depends(get_document_service),
     settings: Settings = Depends(get_settings),
 ):
@@ -132,7 +136,8 @@ async def upload_file(
             file.filename,
             use_ocr,
             doc_service,
-            upload_id
+            upload_id,
+            user.id 
         )
         
         # Return immediately with upload ID
