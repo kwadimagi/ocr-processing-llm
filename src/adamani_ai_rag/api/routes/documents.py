@@ -83,7 +83,7 @@ def process_file_background(file_path: str, filename: str, use_ocr: bool, doc_se
             chunks = loop.run_until_complete(doc_service.process_file(file_path, use_ocr=use_ocr))
         except RuntimeError:
             # No event loop running → create new one
-            chunks = asyncio.run(doc_service.process_file(file, use_ocr=use_ocr))
+            chunks = asyncio.run(doc_service.process_file(file_path, use_ocr=use_ocr))
         
         # Store result for retrieval
         _upload_results[upload_id] = {
