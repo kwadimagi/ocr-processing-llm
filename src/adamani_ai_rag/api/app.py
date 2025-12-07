@@ -43,11 +43,11 @@ app.add_middleware(
 logger.info(f"🌐 CORS enabled for origins: {settings.cors_origins_list}")
 
 # Include routers
-app.include_router(health.router)
-app.include_router(auth.router)  # Authentication routes
-app.include_router(chat.router)
-app.include_router(documents.router)
-app.include_router(invoices.router)  # ← Add this line
+app.include_router(health)
+app.include_router(auth)  # Authentication routes
+app.include_router(chat)
+app.include_router(documents)
+app.include_router(invoices)  # ← Add this line
 
 
 @app.on_event("startup")
