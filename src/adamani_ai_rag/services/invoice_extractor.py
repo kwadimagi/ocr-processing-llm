@@ -1,6 +1,6 @@
 """Production-grade invoice extraction service."""
 import logging
-from typing import Any
+from typing import Any, Optional
 from pathlib import Path
 import uuid
 
