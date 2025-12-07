@@ -86,7 +86,7 @@ async def upload_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     use_ocr: bool = False,
-    user = Depends(get_current_user),
+    user = Depends(get_current_user()),
     doc_service: DocumentService = Depends(get_document_service),
     settings: Settings = Depends(get_settings),
 ):
