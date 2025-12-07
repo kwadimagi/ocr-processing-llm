@@ -12,7 +12,7 @@ router = APIRouter(prefix="/invoices", tags=["invoices"])
 
 @router.get("/")
 async def get_user_invoices(
-    user = Depends(get_current_user),
+    user = Depends(get_current_user()),
     db: AsyncSession = Depends(get_db),
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100)
