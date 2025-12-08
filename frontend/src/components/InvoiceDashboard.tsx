@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { getUserInvoices } from '@/lib/api';
+import { exportToCSV, exportToExcel, exportToPDF } from '@/lib/exportUtils';
 import type { Invoice } from '@/types';
+import { Download, FileSpreadsheet, FileText } from 'lucide-react';
 
 export function InvoiceDashboard() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -19,7 +21,37 @@ export function InvoiceDashboard() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold">Your Invoices</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold">Your Invoices</h2>
+        {invoices.length > 0 && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => exportToCSV(invoices)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+              title="Export to CSV"
+            >
+              <FileText size={16} />
+              CSV
+            </button>
+            <button
+              onClick={() => exportToExcel(invoices)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              title="Export to Excel"
+            >
+              <FileSpreadsheet size={16} />
+              Excel
+            </button>
+            <button
+              onClick={() => exportToPDF(invoices)}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+              title="Export to PDF"
+            >
+              <Download size={16} />
+              PDF
+            </button>
+          </div>
+        )}
+      </div>
       {invoices.length === 0 ? (
         <p className="text-gray">No invoices processed yet.</p>
       ) : (
