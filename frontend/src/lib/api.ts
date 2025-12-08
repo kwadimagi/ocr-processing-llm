@@ -317,7 +317,10 @@ export interface Invoice {
 
 export async function getUserInvoices(): Promise<Invoice[]> {
   const res = await fetch(`${API_BASE}/invoices`, {
-    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+      'Accept': 'application/json',  
+    }
   });
   if (!res.ok) throw new Error('Failed to fetch invoices');
   return res.json();
