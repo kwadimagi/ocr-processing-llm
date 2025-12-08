@@ -90,12 +90,15 @@ class DocumentService:
 
             # === INVOICE EXTRACTION ===
             if self._is_invoice(full_text):
+                logger.info(f"Processing invoice now to databas")
                 try:
                     invoice_data = self.invoice_extractor.extract(full_text)
+                    logger.info(f"Pushing invoice now into databas")
                     await self.invoice_extractor.save_to_db(self.db, invoice_data, file_path,user_id=user_id )
                 except Exception as e:
                     logger.warning(f"⚠️ Invoice extraction failed: {e}")
-
+            
+            logger.info(f"Not invoice henc skipping database commit")
             # === VECTOR STORE INDEXING (RAG) ===
             chunks_added = self.process_documents(documents)
             return chunks_added
