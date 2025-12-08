@@ -52,11 +52,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timezone
 from jose import JWTError, jwt
-from ..config import get_settings
+from ...config import get_settings
 from ..dependencies import get_db
 from ...database.models import Invoice
+from ...utils.logger import setup_logger, get_logger
 
+settings = get_settings()
+setup_logger(settings.log_level)
 logger = get_logger()
+
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
 @router.get("/")
