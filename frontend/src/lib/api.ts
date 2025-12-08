@@ -319,7 +319,8 @@ export async function getUserInvoices(): Promise<Invoice[]> {
   const res = await fetch(`${API_BASE}/invoices`, {
     headers: {
       'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-      'Accept': 'application/json',  
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',  
     }
   });
   if (!res.ok) throw new Error('Failed to fetch invoices');
