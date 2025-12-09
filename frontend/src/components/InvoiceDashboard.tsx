@@ -12,9 +12,10 @@ import {
   SortingState,
   ColumnFiltersState,
 } from '@tanstack/react-table';
-import { getUserInvoices } from '@/lib/api';
+import { getUserInvoices, deleteInvoice, updateInvoice } from '@/lib/api';
 import { exportToCSV, exportToExcel, exportToPDF } from '@/lib/exportUtils';
 import type { Invoice } from '@/types';
+import { EditInvoiceModal } from './EditInvoiceModal';
 import {
   Download,
   FileSpreadsheet,
@@ -26,7 +27,9 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Search
+  Search,
+  Trash2,
+  Edit
 } from 'lucide-react';
 
 export function InvoiceDashboard() {
@@ -35,13 +38,51 @@ export function InvoiceDashboard() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
+  const fetchInvoices = () => {
     getUserInvoices()
       .then(setInvoices)
       .catch(err => console.error('Failed to load invoices:', err))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchInvoices();
+
+    // Poll for new invoices every 5 seconds
+    const interval = setInterval(fetchInvoices, 5000);
+
+    return () => clearInterval(interval);
   }, []);
+
+  const handleEdit = (invoice: Invoice) => {
+    setEditingInvoice(invoice);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingInvoice(null);
+  };
+
+  const handleSaveInvoice = async (invoiceId: string, data: Partial<Invoice>) => {
+    await updateInvoice(invoiceId, data);
+    fetchInvoices();
+  };
+
+  const handleDelete = async (invoiceId: string) => {
+    if (!confirm('Are you sure you want to delete this invoice?')) return;
+
+    try {
+      await deleteInvoice(invoiceId);
+      fetchInvoices();
+    } catch (err) {
+      console.error('Failed to delete invoice:', err);
+      alert('Failed to delete invoice. Please try again.');
+    }
+  };
 
   const columns = useMemo<ColumnDef<Invoice>[]>(
     () => [
@@ -106,8 +147,33 @@ export function InvoiceDashboard() {
           );
         },
       },
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: info => {
+          const invoice = info.row.original;
+          return (
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleEdit(invoice)}
+                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Edit invoice"
+              >
+                <Edit size={16} />
+              </button>
+              <button
+                onClick={() => handleDelete(invoice.id)}
+                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete invoice"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          );
+        },
+      },
     ],
-    []
+    [handleEdit, handleDelete]
   );
 
   const table = useReactTable({
@@ -347,6 +413,14 @@ export function InvoiceDashboard() {
           </div>
         </>
       )}
+
+      {/* Edit Invoice Modal */}
+      <EditInvoiceModal
+        invoice={editingInvoice}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={handleSaveInvoice}
+      />
     </div>
   );
 }

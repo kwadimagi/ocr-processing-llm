@@ -320,9 +320,37 @@ export async function getUserInvoices(): Promise<Invoice[]> {
     headers: {
       'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
       'Accept': 'application/json',
-      'Content-Type': 'application/json',  
+      'Content-Type': 'application/json',
     }
   });
   if (!res.ok) throw new Error('Failed to fetch invoices');
   return res.json();
+}
+
+export async function updateInvoice(
+  invoiceId: string,
+  data: Partial<Invoice>
+): Promise<Invoice> {
+  const res = await fetch(`${API_BASE}/invoices/${invoiceId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update invoice');
+  return res.json();
+}
+
+export async function deleteInvoice(invoiceId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/invoices/${invoiceId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+      'Accept': 'application/json',
+    }
+  });
+  if (!res.ok) throw new Error('Failed to delete invoice');
 }
